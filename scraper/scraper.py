@@ -117,6 +117,8 @@ def get_post_data(driver, all_posts, num_posts_scrape):
             try:
                 post_content = str(current_post.find_element(
                     ELEMENTS["post_content"][0], ELEMENTS["post_content"][1]).text)
+                
+                post_content = post_content.replace("…see more", "")
                 print("-> Post content:", post_content[:40])
             except:
                 blacklisted_indices.append(index)

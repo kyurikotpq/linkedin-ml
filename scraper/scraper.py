@@ -104,8 +104,6 @@ def get_post_data(driver, all_posts, num_posts_scrape):
 
         # Get the post metrics
         current_post = all_posts[index]
-        print("--- --- --- --- --- ---")
-        print("Post selected! Index", index)
 
         try:
             driver.execute_script(
@@ -118,7 +116,6 @@ def get_post_data(driver, all_posts, num_posts_scrape):
                     ELEMENTS["post_content"][0], ELEMENTS["post_content"][1]).text)
 
                 post_content = post_content.replace("…see more", "")
-                print("-> Post content:", post_content[:40])
             except:
                 blacklisted_indices.append(index)
                 continue
@@ -132,7 +129,6 @@ def get_post_data(driver, all_posts, num_posts_scrape):
             try:
                 post_comment_count = current_post.find_element(
                     ELEMENTS["post_comment_count"][0], ELEMENTS["post_comment_count"][1]).text[0]
-                print("-> Post comment count:", post_comment_count)
             except:
                 pass
 
@@ -141,7 +137,6 @@ def get_post_data(driver, all_posts, num_posts_scrape):
             try:
                 post_engagement_count = current_post.find_element(
                     ELEMENTS["post_engagement_count"][0], ELEMENTS["post_engagement_count"][1]).text
-                print("-> Post engagement count:", post_engagement_count)
             except:
                 pass
 
@@ -152,7 +147,6 @@ def get_post_data(driver, all_posts, num_posts_scrape):
             ))
 
             posts_indices.append(index)
-            print("Successfully scraped post. Current Total:", len(scraped_posts))
         except Exception as e:
             blacklisted_indices.append(index)
 
@@ -163,18 +157,21 @@ if __name__ == "__main__":
     ff_options = webdriver.FirefoxOptions()
     ff_options.add_argument("-profile")
     ff_options.add_argument(BROWSER_PROFILE)
-    driver = webdriver.Firefox(options=ff_options)
-    driver.implicitly_wait(SCROLL_PAUSE_TIME * 4)
 
     # Get the profiles
     urls = pd.read_csv(PROFILES_CSV)["profile_url"]
     POSTS_COLUMNS = ["content", "engagement", "comments"]
     df = pd.DataFrame([], columns=POSTS_COLUMNS)
 
+    profile_count = 0
+
     for url in urls:
         print("-----------------")
         print("Visiting profile:", url)
+        driver = webdriver.Firefox(options=ff_options)
+        driver.implicitly_wait(SCROLL_PAUSE_TIME * 4)
         driver.get(url + ACTIVITY_URL)
+        profile_count += 1
 
         follower_count = driver.find_element(
             ELEMENTS["followers"][0], ELEMENTS["followers"][1])
@@ -187,12 +184,14 @@ if __name__ == "__main__":
 
         scraped_posts_df = pd.DataFrame(
             scraped_posts, columns=POSTS_COLUMNS)
+        
+        no_duplicates_df = scraped_posts_df[scraped_posts_df['content'].duplicated() == False]
+        no_duplicates_df.to_csv(f"{profile_count}_{SCRAPED_CSV_FILE_PATH}", index=False)
 
-        df = pd.concat([df, scraped_posts_df], ignore_index=True)
-        removed_duplicates_df = df[df['content'].duplicated() == False]
+        del no_duplicates_df
+        del scraped_posts_df
 
-    print("Total posts scraped:", df.shape[0])
-    print("Total posts (without duplicates):", removed_duplicates_df.shape[0])
-    removed_duplicates_df.to_csv(SCRAPED_CSV_FILE_PATH, index=False)
+        driver.quit()
+        del driver
 
-    driver.quit()
+    print("Completed.")
